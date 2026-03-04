@@ -6,6 +6,8 @@ Build a high-performance, aesthetically "wow" dashboard for Meta Ads practitione
 ---
 
 ## 🚀 Current Status: LIVE (Meta Only)
+- **Deployment**: [https://metaads-analyzer.vercel.app](https://metaads-analyzer.vercel.app)
+- **GitHub**: [https://github.com/ksuhasaria/metaads-analyzer](https://github.com/ksuhasaria/metaads-analyzer)
 - **Framework**: Next.js 16 (Turbopack)
 - **Database**: Supabase (PostgreSQL) + Prisma ORM (v7)
 - **Styling**: Vanilla CSS + CSS Variables (Premium aesthetics)
@@ -58,3 +60,4 @@ Build a high-performance, aesthetically "wow" dashboard for Meta Ads practitione
 - **To Sync**: Click the "Sync Now" button in the sidebar. It triggers `/api/sync`.
 - **Database**: Schema is in `prisma/schema.prisma`. Use `npx prisma migrate dev` for changes.
 - **Styles**: Defined in `globals.css` using CSS variables for easy theming.
+- **Vercel Build Command**: `npx prisma generate && next build` (Required to ensure Prisma Client is available at build time).
