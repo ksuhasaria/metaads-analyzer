@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model MetaCampaignInsight {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  campaignId   String
+  campaignName String
+  spend        Float
+  impressions  Int
+  reach        Int
+  cpm          Float
+  ctr          Float
+  cpc          Float
+  roas         Float
+  purchases    Int
+  revenue      Float
+  frequency    Float
+  createdAt    DateTime @default(now())
+
+  @@unique([date, campaignId])
+  @@index([date])
+  @@index([campaignId])
+  @@map("meta_campaign_insights")
+}
+
+model MetaAdSetInsight {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  adSetId    String
+  adSetName  String
+  campaignId String
+  age        String?
+  gender     String?
+  placement  String?
+  spend      Float
+  impressions Int
+  ctr        Float
+  cpc        Float
+  roas       Float
+  frequency  Float
+  createdAt  DateTime @default(now())
+
+  @@unique([date, adSetId, age, gender, placement])
+  @@index([date])
+  @@index([campaignId])
+  @@map("meta_adset_insights")
+}
+
+model MetaAdInsight {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  adId         String
+  adName       String
+  adSetId      String
+  campaignId   String
+  thumbnailUrl String?
+  spend        Float
+  impressions  Int
+  ctr          Float
+  cpc          Float
+  hookRate     Float?   // 3s video views / impressions
+  roas         Float
+  creativeScore Float?  // computed composite score
+  createdAt    DateTime @default(now())
+
+  @@unique([date, adId])
+  @@index([date])
+  @@index([campaignId])
+  @@map("meta_ad_insights")
+}
+
+model SyncLog {
+  id         String   @id @default(cuid())
+  source     String   // "meta" | "shopify"
+  dateRange  String
+  status     String   // "success" | "error"
+  message    String?
+  syncedAt   DateTime @default(now())
+
+  @@map("sync_log")
+}
+
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  @@map("settings")
+}
