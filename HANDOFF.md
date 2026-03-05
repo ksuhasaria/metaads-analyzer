@@ -31,14 +31,16 @@ Build a high-performance, aesthetically "wow" dashboard for Meta Ads practitione
 - **Creative Lab**: Ad-level scoring based on CTR, ROAS, and Hook Rate.
 - **Improve**: Actionable insights evaluating frequency caps, underperforming ROAS, and scaling opportunities.
 
+### **3. AI Data Analyst Chatbot**
+- **Global Interface**: A slide-out, persistent chat panel powered by the Vercel AI SDK (v6+).
+- **LLM Integration**: Uses OpenAI (`gpt-4o-mini`) to process natural language queries regarding campaign data. Formats all financial responses strictly in Indian Rupees (INR / ₹) and is injected with real-time local date context to avoid time-based hallucinations.
+- **Tool Calling**: The AI dynamically uses Prisma queries through 3 defined server-side tools (`getAccountSummary`, `listCampaigns`, and `queryAdPerformance`) to fetch accurate, sliceable data at the campaign, adset, and ad levels.
+
 ---
 
 ## ⏳ Pending / Future Roadmap (Recommendations for Next Iteration)
 
-### **1. AI Recommendations (LLM Integration)**
-- **Objective**: Pass best and worst-performing ads (and their metrics) to an LLM (e.g., OpenAI/Gemini) to generate plain-English, actionable suggestions on *why* creatives are fatiguing and recommend new copy angles to try next.
-
-### **2. Shopify Integration (Orders & LTV) (RESUME)**
+### **1. Shopify Integration (Orders & LTV) (RESUME)**
 - **Objective**: Integrate real Shopify store revenue to uncover discrepancies between Meta's reported revenue and actual business revenue.
 - **Implementation**: Needs OAuth flow with space-separated scopes (`read_orders`) to match data points properly. 
 
