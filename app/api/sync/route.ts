@@ -4,11 +4,9 @@ import { creativeScore } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function syncMeta(since: string, until: string) {
-    const [campaigns, adsets, ads] = await Promise.all([
-        fetchCampaignInsights(since, until),
-        fetchAdSetInsights(since, until),
-        fetchAdInsights(since, until),
-    ]);
+    const campaigns = await fetchCampaignInsights(since, until);
+    const adsets = await fetchAdSetInsights(since, until);
+    const ads = await fetchAdInsights(since, until);
 
     // Upsert campaigns
     for (const c of campaigns) {

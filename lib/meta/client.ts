@@ -15,30 +15,50 @@ export class MetaAPIError extends Error {
     }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function metaFetch<T>(
     endpoint: string,
-    params: Record<string, string> = {}
+    params: Record<string, string> = {},
+    retries = 3
 ): Promise<T> {
     const url = new URL(`${BASE_URL}${endpoint}`);
     url.searchParams.set("access_token", ACCESS_TOKEN);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-    const res = await fetch(url.toString(), { next: { revalidate: 0 } });
-    const data = await res.json();
+    try {
+        const res = await fetch(url.toString(), { next: { revalidate: 0 } } as RequestInit);
+        const data = await res.json();
 
-    if (!res.ok || data.error) {
-        throw new MetaAPIError(
-            data.error?.message ?? "Meta API request failed",
-            res.status,
-            data.error?.code
-        );
+        if (!res.ok || data.error) {
+            // Meta rate limit error codes are usually 4, 17, 32, 613, 80000, 80001, 80002, 80003, 80004, 80005, 80006, 80008, 80009
+            const isRateLimit = res.status === 429 || [4, 17, 32, 613].includes(data.error?.code);
+
+            if (isRateLimit && retries > 0) {
+                console.log(`Rate limit hit, retrying in 2s... (${retries} retries left)`);
+                await sleep(2000);
+                return metaFetch<T>(endpoint, params, retries - 1);
+            }
+
+            throw new MetaAPIError(
+                data.error?.message ?? "Meta API request failed",
+                res.status,
+                data.error?.code
+            );
+        }
+
+        return data as T;
+    } catch (err) {
+        if (retries > 0 && !(err instanceof MetaAPIError)) {
+            await sleep(1000);
+            return metaFetch<T>(endpoint, params, retries - 1);
+        }
+        throw err;
     }
-
-    return data as T;
 }
 
 // Paginate through all results (handles Meta cursor-based pagination)
-export async function metaFetchAll<T extends { data: unknown[]; paging?: { next?: string } }>(
+export async function metaFetchAll<T extends { data: unknown[]; paging?: { next?: string }; error?: { message: string } }>(
     endpoint: string,
     params: Record<string, string> = {}
 ): Promise<unknown[]> {
@@ -50,10 +70,24 @@ export async function metaFetchAll<T extends { data: unknown[]; paging?: { next?
     nextUrl = firstPage.paging?.next ?? null;
 
     while (nextUrl) {
-        const res = await fetch(nextUrl, { next: { revalidate: 0 } });
+        // Add a small delay between paginated requests to avoid hammering the API
+        await sleep(300);
+        const res = await fetch(nextUrl, { next: { revalidate: 0 } } as RequestInit);
         const page = await res.json() as T;
-        results.push(...page.data);
-        nextUrl = page.paging?.next ?? null;
+
+        if (page.error) {
+            // Basic retry for pagination if it fails
+            console.log("Pagination error, waiting 2s...");
+            await sleep(2000);
+            const retryRes = await fetch(nextUrl, { next: { revalidate: 0 } } as RequestInit);
+            const retryPage = await retryRes.json() as T;
+            if (retryPage.error) throw new Error(retryPage.error.message);
+            results.push(...retryPage.data);
+            nextUrl = retryPage.paging?.next ?? null;
+        } else {
+            results.push(...page.data);
+            nextUrl = page.paging?.next ?? null;
+        }
     }
 
     return results;
