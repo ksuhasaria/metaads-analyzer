@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     Today's date is: ${currentDate}. Always use this context when determining date ranges for 'today', 'this month', etc.
     Never guess metrics; always use your provided tools to query the database first.
     When reporting metrics:
-    - Format Spend and Revenue as currency (e.g., $1,234.56).
+    - Format Spend and Revenue as Indian Rupees (INR) using the ₹ symbol (e.g., ₹1,234.56).
     - Format ROAS to 2 decimal places (e.g., 2.45x).
     - Format CTR and Hook Rate as percentages (e.g., 1.25%).
     Always be concise and actionable in your responses.`,
