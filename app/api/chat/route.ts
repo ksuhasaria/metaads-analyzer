@@ -15,12 +15,12 @@ export async function POST(req: Request) {
     const hasGoogle = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
     let model;
-    if (hasOpenAI) {
-        console.log('Chat API: Using OpenAI (gpt-4o-mini)');
-        model = openai('gpt-4o-mini');
-    } else if (hasGoogle) {
+    if (hasGoogle) {
         console.log('Chat API: Using Google Gemini (gemini-1.5-flash)');
         model = google('gemini-1.5-flash');
+    } else if (hasOpenAI) {
+        console.log('Chat API: Using OpenAI (gpt-4o-mini)');
+        model = openai('gpt-4o-mini');
     } else {
         console.error('Chat API: Missing AI API Key');
         return new Response('Missing AI API Key (OpenAI or Google)', { status: 400 });
