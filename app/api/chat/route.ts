@@ -19,13 +19,13 @@ export async function POST(req: Request) {
         console.log('Chat API: User selected OpenAI (gpt-4o-mini)');
         model = openai('gpt-4o-mini');
     } else if (provider === 'gemini' && hasGoogle) {
-        console.log('Chat API: User selected Google Gemini (gemini-2.0-flash)');
-        model = google('gemini-2.0-flash');
+        console.log('Chat API: User selected Google Gemini (gemini-2.0-flash-exp)');
+        model = google('gemini-2.0-flash-exp');
     } else {
         // Fallback or error
         if (hasGoogle) {
             console.log('Chat API: Requested provider unavailable, falling back to Gemini');
-            model = google('gemini-2.0-flash');
+            model = google('gemini-2.0-flash-exp');
         } else if (hasOpenAI) {
             console.log('Chat API: Requested provider unavailable, falling back to OpenAI');
             model = openai('gpt-4o-mini');
