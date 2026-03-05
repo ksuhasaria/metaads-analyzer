@@ -8,12 +8,8 @@ import { cn } from '@/lib/utils';
 export default function ChatPanel() {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
-    const [provider, setProvider] = useState<'openai' | 'gemini'>('gemini');
-
     const { messages, sendMessage, status } = useChat({
         api: '/api/chat',
-        id: provider,
-        body: { provider },
     } as any);
 
     const isLoading = status === 'streaming' || status === 'submitted';
@@ -31,13 +27,13 @@ export default function ChatPanel() {
 
         const content = input;
         setInput('');
-        await sendMessage({ text: content }, { body: { provider } });
+        await sendMessage({ text: content });
     };
 
     const handleSuggestion = async (suggestion: string) => {
         if (isLoading) return;
 
-        await sendMessage({ text: suggestion }, { body: { provider } });
+        await sendMessage({ text: suggestion });
     };
 
     return (
@@ -65,44 +61,16 @@ export default function ChatPanel() {
             >
                 {/* Header */}
                 <div className="p-4 border-b border-[#252836] flex items-center justify-between bg-[#1a1d26]">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 pr-3 border-r border-[#252836]">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                                <Bot className="w-4 h-4 text-indigo-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-semibold text-white">AI Analyst</h3>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <span className="text-[10px] text-[#6b7280] uppercase tracking-wider font-medium">Online</span>
-                                </div>
-                            </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                            <Bot className="w-4 h-4 text-indigo-400" />
                         </div>
-
-                        {/* Provider Toggle */}
-                        <div className="flex items-center gap-1 bg-[#0a0b0f] p-1 rounded-lg border border-[#252836]">
-                            <button
-                                onClick={() => setProvider('openai')}
-                                className={cn(
-                                    "px-2 py-1 text-[10px] rounded transition-all font-bold",
-                                    provider === 'openai'
-                                        ? "bg-indigo-600 text-white"
-                                        : "text-[#6b7280] hover:text-white"
-                                )}
-                            >
-                                GPT-4o
-                            </button>
-                            <button
-                                onClick={() => setProvider('gemini')}
-                                className={cn(
-                                    "px-2 py-1 text-[10px] rounded transition-all font-bold",
-                                    provider === 'gemini'
-                                        ? "bg-indigo-600 text-white"
-                                        : "text-[#6b7280] hover:text-white"
-                                )}
-                            >
-                                Gemini
-                            </button>
+                        <div>
+                            <h3 className="text-sm font-semibold text-white">AI Analyst</h3>
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="text-[10px] text-[#6b7280] uppercase tracking-wider font-medium">Online</span>
+                            </div>
                         </div>
                     </div>
                     <button

@@ -1,6 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { google } from '@ai-sdk/google';
-import { streamText, tool, zodSchema, convertToModelMessages, stepCountIs } from 'ai';
+import { streamText, tool, convertToModelMessages, stepCountIs } from 'ai';
 import * as z from 'zod';
 import { prisma } from '@/lib/db';
 
@@ -8,34 +7,18 @@ import { prisma } from '@/lib/db';
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-    const { messages, provider } = await req.json();
+    const { messages } = await req.json();
 
-    // Detect provider keys
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
-    const hasGoogle = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    let model;
-    if (provider === 'openai' && hasOpenAI) {
-        console.log('Chat API: User selected OpenAI (gpt-4o-mini)');
-        model = openai('gpt-4o-mini');
-    } else if (provider === 'gemini' && hasGoogle) {
-        console.log('Chat API: User selected Google Gemini (gemini-1.5-flash)');
-        model = google('gemini-1.5-flash');
-    } else {
-        // Fallback or error
-        if (hasGoogle) {
-            console.log('Chat API: Requested provider unavailable, falling back to Gemini');
-            model = google('gemini-1.5-flash');
-        } else if (hasOpenAI) {
-            console.log('Chat API: Requested provider unavailable, falling back to OpenAI');
-            model = openai('gpt-4o-mini');
-        } else {
-            console.error('Chat API: Missing AI API Key');
-            return new Response('Missing AI API Key (OpenAI or Google)', { status: 400 });
-        }
+    if (!hasOpenAI) {
+        console.error('Chat API: Missing OpenAI API Key');
+        return new Response('Missing OpenAI API Key', { status: 400 });
     }
 
-    console.log('Chat API: Starting streamText...');
+    const model = openai('gpt-4o-mini');
+
+    console.log('Chat API: Starting streamText with OpenAI...');
     const result = streamText({
         model,
         messages: await convertToModelMessages(messages),
