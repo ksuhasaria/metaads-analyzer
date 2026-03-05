@@ -13,7 +13,8 @@ import {
     TrendingUp,
     RefreshCw,
     Check,
-    AlertCircle
+    AlertCircle,
+    Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,13 +68,130 @@ export default function Sidebar() {
             </nav>
 
             {/* Sync button */}
-            <div className="px-3 py-4 border-t border-[#252836]">
+            <div className="px-3 py-4 border-t border-[#252836] space-y-3">
                 <SyncButton />
+                <BackfillButton />
             </div>
         </aside>
     );
 }
 
+function BackfillButton() {
+    const [progress, setProgress] = useState(0);
+    const [status, setStatus] = useState<"idle" | "running" | "error" | "complete">("idle");
+    const [chunks, setChunks] = useState<{ since: string; until: string }[]>([]);
+    const [isComplete, setIsComplete] = useState(true);
+
+    useEffect(() => {
+        const complete = localStorage.getItem("backfill_complete");
+        setIsComplete(complete === "true");
+
+        const generated = [];
+        let endObj = new Date();
+        endObj.setDate(endObj.getDate() - 3); // Start 3 days ago to not overlap with daily sync
+
+        for (let i = 0; i < 13; i++) {
+            const startObj = new Date(endObj);
+            startObj.setDate(startObj.getDate() - 7);
+
+            generated.push({
+                since: startObj.toISOString().split("T")[0],
+                until: endObj.toISOString().split("T")[0],
+            });
+            endObj = new Date(startObj);
+            endObj.setDate(endObj.getDate() - 1);
+        }
+        setChunks(generated.reverse());
+
+        const p = localStorage.getItem("backfill_progress");
+        if (p) setProgress(parseInt(p, 10));
+    }, []);
+
+    async function handleBackfill() {
+        setStatus("running");
+        let currentProgress = progress;
+
+        try {
+            for (let i = currentProgress; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                const res = await fetch("/api/backfill", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(chunk),
+                });
+
+                if (!res.ok) throw new Error("Chunk failed");
+
+                currentProgress = i + 1;
+                setProgress(currentProgress);
+                localStorage.setItem("backfill_progress", currentProgress.toString());
+
+                // Don't wait after the very last chunk
+                if (currentProgress < chunks.length) {
+                    await new Promise((r) => setTimeout(r, 2000));
+                }
+            }
+            setStatus("complete");
+            setIsComplete(true);
+            localStorage.setItem("backfill_complete", "true");
+        } catch (err) {
+            console.error("Backfill error:", err);
+            setStatus("error");
+        }
+    }
+
+    // Auto-hide if completed before
+    if (isComplete && status !== "complete") return null;
+
+    return (
+        <div className="space-y-2.5 mt-4 pt-4 border-t border-[#252836]">
+            <p className="text-[11px] text-[#6b7280] font-medium text-center uppercase tracking-wider">Historical Data</p>
+            <button
+                onClick={handleBackfill}
+                disabled={status === "running" || status === "complete"}
+                className={cn(
+                    "w-full flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 border shadow-sm",
+                    status === "running" && "bg-indigo-500/10 border-indigo-500/40 text-indigo-400 cursor-wait",
+                    status === "complete" && "bg-emerald-500/10 border-emerald-500/40 text-emerald-400",
+                    status === "error" && "bg-amber-500/10 border-amber-500/40 text-amber-400",
+                    status === "idle" && "bg-[#1a1d26] border-[#252836] text-[#e8eaf0] hover:bg-[#252836] hover:border-indigo-500/40 hover:text-white"
+                )}
+            >
+                <div className="flex items-center gap-2">
+                    {status === "running" ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : status === "complete" ? (
+                        <Check className="w-3 h-3" />
+                    ) : status === "error" ? (
+                        <AlertCircle className="w-3 h-3" />
+                    ) : (
+                        <Database className="w-3 h-3" />
+                    )}
+                    {status === "running"
+                        ? `Syncing ${progress}/${chunks.length}`
+                        : status === "complete"
+                            ? "90 Days Synced!"
+                            : status === "error"
+                                ? `Resume (${progress}/${chunks.length})`
+                                : progress > 0
+                                    ? `Resume Backfill (${progress}/${chunks.length})`
+                                    : "Fetch 90 Days History"}
+                </div>
+            </button>
+
+            {status === "running" && (
+                <div className="w-full bg-[#1a1d26] h-1.5 rounded-full overflow-hidden border border-[#252836]">
+                    <div
+                        className="bg-indigo-500 h-full transition-all duration-300 relative overflow-hidden"
+                        style={{ width: `${(progress / chunks.length) * 100}%` }}
+                    >
+                        <div className="absolute inset-0 w-full h-full bg-white/20 -skew-x-12 translate-x-[-100%] animate-[shimmer_1s_infinite]" />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 function SyncButton() {
     const [isSyncing, setIsSyncing] = useState(false);

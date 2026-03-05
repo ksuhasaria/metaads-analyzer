@@ -127,8 +127,8 @@ export async function syncMeta(since: string, until: string) {
 
 
 export async function POST() {
-    // Only pull the last 1 day of data on production by default to avoid triggering Meta API rate limits on massive datasets.
-    const since = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    // Pull the last 3 days of data on production by default to catch 72h attribution window updates
+    const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const until = new Date().toISOString().split("T")[0];
 
     try {
