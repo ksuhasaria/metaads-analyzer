@@ -16,8 +16,8 @@ export async function POST(req: Request) {
 
     let model;
     if (hasGoogle) {
-        console.log('Chat API: Using Google Gemini (gemini-1.5-flash)');
-        model = google('gemini-1.5-flash');
+        console.log('Chat API: Using Google Gemini (gemini-1.5-flash-latest)');
+        model = google('gemini-1.5-flash-latest');
     } else if (hasOpenAI) {
         console.log('Chat API: Using OpenAI (gpt-4o-mini)');
         model = openai('gpt-4o-mini');
