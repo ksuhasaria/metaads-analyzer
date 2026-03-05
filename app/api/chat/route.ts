@@ -18,12 +18,21 @@ export async function POST(req: Request) {
 
     const model = openai('gpt-4o-mini');
 
+    const currentDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'Asia/Kolkata'
+    });
+
     console.log('Chat API: Starting streamText with OpenAI...');
     const result = streamText({
         model,
         messages: await convertToModelMessages(messages),
         stopWhen: stepCountIs(5),
         system: `You are an elite Media Buyer and Data Analyst. Your job is to analyze the user's Meta Ads data accurately. 
+    Today's date is: ${currentDate}. Always use this context when determining date ranges for 'today', 'this month', etc.
     Never guess metrics; always use your provided tools to query the database first.
     When reporting metrics:
     - Format Spend and Revenue as currency (e.g., $1,234.56).
