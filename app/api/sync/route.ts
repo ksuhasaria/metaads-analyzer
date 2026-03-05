@@ -98,7 +98,8 @@ export async function syncMeta(since: string, until: string) {
 
 
 export async function POST() {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    // Only pull the last 1 day of data on production by default to avoid triggering Meta API rate limits on massive datasets.
+    const since = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const until = new Date().toISOString().split("T")[0];
 
     try {
