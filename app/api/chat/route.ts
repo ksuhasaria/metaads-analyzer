@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
-import { streamText, tool, zodSchema } from 'ai';
+import { streamText, tool, zodSchema, convertToModelMessages, stepCountIs } from 'ai';
 import * as z from 'zod';
 import { prisma } from '@/lib/db';
 
@@ -28,7 +28,8 @@ export async function POST(req: Request) {
 
     const result = await streamText({
         model,
-        messages,
+        messages: await convertToModelMessages(messages),
+        stopWhen: stepCountIs(5),
         system: `You are an elite Media Buyer and Data Analyst. Your job is to analyze the user's Meta Ads data accurately. 
     Never guess metrics; always use your provided tools to query the database first.
     When reporting metrics:

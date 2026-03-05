@@ -136,6 +136,22 @@ export default function ChatPanel() {
                                     : "bg-[#1a1d26] text-[#e8eaf0] border border-[#252836] rounded-tl-none"
                             )}>
                                 {m.content}
+                                {m.parts?.map((part: any, i: number) => {
+                                    if (part.type === 'text') {
+                                        return <div key={i}>{part.text}</div>;
+                                    }
+                                    if (part.type.startsWith('tool-')) {
+                                        return (
+                                            <div key={i} className="mt-2 p-2 bg-black/20 rounded font-mono text-[10px] text-indigo-300 border border-indigo-500/20">
+                                                🛠️ Using tool: {part.type.replace('tool-', '')}
+                                                {part.state === 'output-available' && (
+                                                    <div className="text-emerald-400 mt-1">✓ Data received</div>
+                                                )}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
                             </div>
                         </div>
                     ))}
