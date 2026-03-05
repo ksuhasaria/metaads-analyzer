@@ -161,16 +161,28 @@ export async function fetchCampaignStatuses(): Promise<Record<string, string>> {
     return map;
 }
 
-/** Fetch current effective_status for all ads in the ad account. */
-export async function fetchAdStatuses(): Promise<Record<string, string>> {
+/** Fetch current effective_status and thumbnail for all ads in the ad account. */
+export async function fetchAdStatuses(): Promise<Record<string, { status: string; thumbnailUrl: string | null }>> {
     const { metaFetch } = await import("./client");
-    const data = await metaFetch<{ data: Array<{ id: string; effective_status: string }> }>(
+    const data = await metaFetch<{
+        data: Array<{
+            id: string;
+            effective_status: string;
+            creative?: {
+                thumbnail_url?: string;
+                image_url?: string;
+            }
+        }>
+    }>(
         `/${AD_ACCOUNT_ID}/ads`,
-        { fields: "id,effective_status", limit: "500" }
+        { fields: "id,effective_status,creative{thumbnail_url,image_url}", limit: "500" }
     );
-    const map: Record<string, string> = {};
+    const map: Record<string, { status: string; thumbnailUrl: string | null }> = {};
     for (const a of data.data ?? []) {
-        map[a.id] = a.effective_status;
+        map[a.id] = {
+            status: a.effective_status,
+            thumbnailUrl: a.creative?.thumbnail_url || a.creative?.image_url || null
+        };
     }
     return map;
 }

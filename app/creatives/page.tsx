@@ -63,13 +63,13 @@ export default async function CreativesPage({
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {creatives.map((ad) => {
+                    {creatives.map((ad, idx) => {
                         const score = Math.round(ad._avg.creativeScore ?? 0);
                         const tier = tierBadge(score);
                         const hookRate = ad._avg.hookRate ?? 0;
 
                         return (
-                            <div key={ad.adId} className="rounded-xl border border-[#252836] bg-[#12141a] overflow-hidden hover:border-indigo-500/30 transition-colors">
+                            <div key={`${ad.adId}-${idx}`} className="rounded-xl border border-[#252836] bg-[#12141a] overflow-hidden hover:border-indigo-500/30 transition-colors">
                                 {/* Thumbnail */}
                                 <div className="relative aspect-video bg-[#1a1d26] flex items-center justify-center">
                                     {ad.thumbnailUrl ? (

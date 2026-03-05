@@ -9,7 +9,7 @@ export async function syncMeta(since: string, until: string) {
         fetchAdSetInsights(since, until),
         fetchAdInsights(since, until),
         fetchCampaignStatuses().catch(() => ({} as Record<string, string>)),
-        fetchAdStatuses().catch(() => ({} as Record<string, string>)),
+        fetchAdStatuses().catch(() => ({} as Record<string, { status: string; thumbnailUrl: string | null }>)),
     ]);
 
     // Upsert campaigns
@@ -89,9 +89,11 @@ export async function syncMeta(since: string, until: string) {
         });
     }
 
-    // Upsert ads with computed creative score + status
+    // Upsert ads with computed creative score + status + thumbnail
     for (const ad of ads) {
         const score = creativeScore(ad.ctr, ad.roas, ad.hookRate);
+        const adMeta = adStatuses[ad.adId] || { status: null, thumbnailUrl: null };
+
         await prisma.metaAdInsight.upsert({
             where: { date_adId: { date: new Date(ad.date), adId: ad.adId } },
             create: {
@@ -107,7 +109,8 @@ export async function syncMeta(since: string, until: string) {
                 hookRate: ad.hookRate,
                 roas: ad.roas,
                 creativeScore: score,
-                status: adStatuses[ad.adId] ?? null,
+                status: adMeta.status,
+                thumbnailUrl: adMeta.thumbnailUrl,
             },
             update: {
                 spend: ad.spend,
@@ -117,7 +120,8 @@ export async function syncMeta(since: string, until: string) {
                 roas: ad.roas,
                 hookRate: ad.hookRate,
                 creativeScore: score,
-                status: adStatuses[ad.adId] ?? null,
+                status: adMeta.status,
+                thumbnailUrl: adMeta.thumbnailUrl,
             },
         });
     }
