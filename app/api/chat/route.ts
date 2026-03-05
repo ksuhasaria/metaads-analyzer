@@ -8,22 +8,31 @@ import { prisma } from '@/lib/db';
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-    const { messages } = await req.json();
+    const { messages, provider } = await req.json();
 
-    // Detect provider
+    // Detect provider keys
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasGoogle = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
     let model;
-    if (hasGoogle) {
-        console.log('Chat API: Using Google Gemini (gemini-2.0-flash)');
-        model = google('gemini-2.0-flash');
-    } else if (hasOpenAI) {
-        console.log('Chat API: Using OpenAI (gpt-4o-mini)');
+    if (provider === 'openai' && hasOpenAI) {
+        console.log('Chat API: User selected OpenAI (gpt-4o-mini)');
         model = openai('gpt-4o-mini');
+    } else if (provider === 'gemini' && hasGoogle) {
+        console.log('Chat API: User selected Google Gemini (gemini-2.0-flash)');
+        model = google('gemini-2.0-flash');
     } else {
-        console.error('Chat API: Missing AI API Key');
-        return new Response('Missing AI API Key (OpenAI or Google)', { status: 400 });
+        // Fallback or error
+        if (hasGoogle) {
+            console.log('Chat API: Requested provider unavailable, falling back to Gemini');
+            model = google('gemini-2.0-flash');
+        } else if (hasOpenAI) {
+            console.log('Chat API: Requested provider unavailable, falling back to OpenAI');
+            model = openai('gpt-4o-mini');
+        } else {
+            console.error('Chat API: Missing AI API Key');
+            return new Response('Missing AI API Key (OpenAI or Google)', { status: 400 });
+        }
     }
 
     console.log('Chat API: Starting streamText...');
