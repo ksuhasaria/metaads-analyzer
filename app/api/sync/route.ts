@@ -65,6 +65,9 @@ export async function syncMeta(since: string, until: string) {
                 adSetId: a.adSetId,
                 adSetName: a.adSetName,
                 campaignId: a.campaignId,
+                age: a.age ?? "",
+                gender: a.gender ?? "",
+                placement: a.placement ?? "",
                 spend: a.spend,
                 impressions: a.impressions,
                 ctr: a.ctr,
@@ -72,7 +75,17 @@ export async function syncMeta(since: string, until: string) {
                 frequency: a.frequency,
                 roas: a.roas,
             },
-            update: { spend: a.spend, impressions: a.impressions, ctr: a.ctr, cpc: a.cpc, roas: a.roas, frequency: a.frequency },
+            update: {
+                spend: a.spend,
+                impressions: a.impressions,
+                ctr: a.ctr,
+                cpc: a.cpc,
+                roas: a.roas,
+                frequency: a.frequency,
+                age: a.age ?? "",
+                gender: a.gender ?? "",
+                placement: a.placement ?? "",
+            },
         });
     }
 
@@ -125,7 +138,7 @@ export async function POST() {
                 source: "meta",
                 dateRange: `${since} to ${until}`,
                 status: "success",
-                message: `Meta sync successful. Updated ${results.campaigns} campaigns.`,
+                message: `Meta sync successful. Updated ${results.campaigns} campaigns, ${results.adsets} audience segments, and ${results.ads} ads.`,
             },
         });
         return NextResponse.json({ success: true, ...results });

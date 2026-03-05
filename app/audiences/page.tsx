@@ -10,7 +10,11 @@ async function getAudienceData(since: Date): Promise<AudienceSegment[]> {
     try {
         const breakdown = (await prisma.metaAdSetInsight.groupBy({
             by: ["age", "gender"],
-            where: { date: { gte: since }, age: { not: null }, gender: { not: null } },
+            where: {
+                date: { gte: since },
+                age: { notIn: [null, "", "unknown"] },
+                gender: { notIn: [null, "", "unknown"] }
+            },
             _sum: { spend: true, impressions: true },
             _avg: { ctr: true, cpc: true, roas: true, frequency: true },
             orderBy: { _avg: { roas: "desc" } },
