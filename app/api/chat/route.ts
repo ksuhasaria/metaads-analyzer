@@ -26,7 +26,8 @@ export async function POST(req: Request) {
         return new Response('Missing AI API Key (OpenAI or Google)', { status: 400 });
     }
 
-    const result = await streamText({
+    console.log('Chat API: Starting streamText...');
+    const result = streamText({
         model,
         messages: await convertToModelMessages(messages),
         stopWhen: stepCountIs(5),
@@ -40,11 +41,12 @@ export async function POST(req: Request) {
         tools: {
             getAccountSummary: tool({
                 description: 'Get a high-level KPI summary of the entire ad account for a date range.',
-                inputSchema: zodSchema(z.object({
+                inputSchema: z.object({
                     since: z.string().describe('Start date in YYYY-MM-DD format'),
                     until: z.string().describe('End date in YYYY-MM-DD format'),
-                })),
+                }),
                 execute: async ({ since, until }) => {
+                    console.log(`Tool: getAccountSummary(${since}, ${until})`);
                     const summary = await prisma.metaCampaignInsight.aggregate({
                         where: {
                             date: {
@@ -77,10 +79,11 @@ export async function POST(req: Request) {
             }),
             listCampaigns: tool({
                 description: 'List all unique campaign names and IDs currently in the database.',
-                inputSchema: zodSchema(z.object({
+                inputSchema: z.object({
                     status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED', 'ALL']).optional().default('ALL'),
-                })),
+                }),
                 execute: async ({ status }) => {
+                    console.log(`Tool: listCampaigns(status=${status})`);
                     const where: any = {};
                     if (status !== 'ALL') {
                         where.status = status;
@@ -100,15 +103,16 @@ export async function POST(req: Request) {
             }),
             queryAdPerformance: tool({
                 description: 'Query detailed performance metrics at the campaign, adset, or ad level.',
-                inputSchema: zodSchema(z.object({
+                inputSchema: z.object({
                     level: z.enum(['campaign', 'adset', 'ad']),
                     since: z.string().describe('Start date in YYYY-MM-DD format'),
                     until: z.string().describe('End date in YYYY-MM-DD format'),
                     campaignName: z.string().optional().describe('Filter by a specific campaign name (partial match)'),
                     limit: z.number().optional().default(10),
                     sortBy: z.enum(['spend', 'roas', 'purchases', 'ctr']).optional().default('spend'),
-                })),
+                }),
                 execute: async ({ level, since, until, campaignName, limit, sortBy }) => {
+                    console.log(`Tool: queryAdPerformance(${level}, ${since}, ${until})`);
                     const where: any = {
                         date: {
                             gte: new Date(since),
