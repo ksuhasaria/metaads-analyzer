@@ -8,10 +8,10 @@ declare global {
 }
 
 function createPrismaClient(): PrismaClient {
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DIRECT_URL;
 
     if (!connectionString) {
-        throw new Error("Missing DATABASE_URL or POSTGRES_URL environment variable.");
+        throw new Error("Missing DATABASE_URL, POSTGRES_URL, or DIRECT_URL environment variable.");
     }
 
     const pool = new Pool({
