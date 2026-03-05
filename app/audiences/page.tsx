@@ -12,8 +12,8 @@ async function getAudienceData(since: Date): Promise<AudienceSegment[]> {
             by: ["age", "gender"],
             where: {
                 date: { gte: since },
-                age: { notIn: [null, "", "unknown"] },
-                gender: { notIn: [null, "", "unknown"] }
+                age: { not: null, notIn: ["", "unknown"] },
+                gender: { not: null, notIn: ["", "unknown"] }
             },
             _sum: { spend: true, impressions: true },
             _avg: { ctr: true, cpc: true, roas: true, frequency: true },
