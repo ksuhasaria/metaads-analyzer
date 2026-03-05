@@ -21,11 +21,13 @@ model MetaCampaignInsight {
   purchases    Int
   revenue      Float
   frequency    Float
+  status       String?  // effective_status: ACTIVE | PAUSED | ARCHIVED etc.
   createdAt    DateTime @default(now())
 
   @@unique([date, campaignId])
   @@index([date])
   @@index([campaignId])
+  @@index([status])
   @@map("meta_campaign_insights")
 }
 
@@ -67,11 +69,13 @@ model MetaAdInsight {
   hookRate     Float?   // 3s video views / impressions
   roas         Float
   creativeScore Float?  // computed composite score
+  status       String?  // effective_status: ACTIVE | PAUSED | ARCHIVED etc.
   createdAt    DateTime @default(now())
 
   @@unique([date, adId])
   @@index([date])
   @@index([campaignId])
+  @@index([status])
   @@map("meta_ad_insights")
 }
 

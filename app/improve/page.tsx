@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/db";
 import Badge from "@/components/Badge";
+import DateRangePicker from "@/components/DateRangePicker";
 import { formatCurrency, formatRoas } from "@/lib/utils";
 import { detectFatigue, budgetSignals, scoreCreatives } from "@/lib/insights/engine";
+import { Suspense } from "react";
 
-async function getImproveData() {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+async function getImproveData(since: Date, until: Date) {
     try {
         const campaigns = (await prisma.metaCampaignInsight.groupBy({
             by: ["campaignId", "campaignName"],
-            where: { date: { gte: since } },
+            where: { date: { gte: since, lte: until } },
             _sum: { spend: true },
             _avg: { roas: true, frequency: true, ctr: true, cpc: true },
         })) as unknown as Array<{
@@ -18,7 +19,7 @@ async function getImproveData() {
         }>;
 
         const ads = await prisma.metaAdInsight.findMany({
-            where: { date: { gte: since }, spend: { gt: 10 } },
+            where: { date: { gte: since, lte: until }, spend: { gt: 10 } },
             select: { adId: true, adName: true, campaignId: true, ctr: true, roas: true, hookRate: true, spend: true, cpc: true },
         });
 
@@ -42,8 +43,16 @@ async function getImproveData() {
 }
 
 
-export default async function ImprovePage() {
-    const { fatigued, budgets, scoredAds } = await getImproveData();
+export default async function ImprovePage({
+    searchParams,
+}: {
+    searchParams: Promise<{ since?: string; until?: string }>;
+}) {
+    const params = await searchParams;
+    const since = params.since ? new Date(params.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const until = params.until ? new Date(params.until) : new Date();
+    const days = Math.round((until.getTime() - since.getTime()) / 86400000) || 30;
+    const { fatigued, budgets, scoredAds } = await getImproveData(since, until);
 
     const scale = budgets.filter((b) => b.signal === "scale");
     const cut = budgets.filter((b) => b.signal === "cut");
@@ -75,9 +84,14 @@ export default async function ImprovePage() {
 
     return (
         <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-xl font-bold text-white">Improvement Actions</h1>
-                <p className="text-sm text-[#6b7280] mt-0.5">Prioritized signals — what to do right now</p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h1 className="text-xl font-bold text-white">Improvement Actions</h1>
+                    <p className="text-sm text-[#6b7280] mt-0.5">Last {days} days · Prioritized signals</p>
+                </div>
+                <Suspense>
+                    <DateRangePicker />
+                </Suspense>
             </div>
 
             {/* Prioritized Action List */}

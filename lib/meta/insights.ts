@@ -57,6 +57,7 @@ export async function fetchCampaignInsights(since: string, until: string) {
             time_range: JSON.stringify({ since, until }),
             time_increment: "1",
             action_attribution_windows: '["1d_click","7d_click","1d_view"]',
+            filtering: JSON.stringify([{ field: "campaign.effective_status", operator: "IN", value: ["ACTIVE", "PAUSED", "ARCHIVED", "DELETED"] }]),
             limit: "500",
         }
     );
@@ -102,6 +103,7 @@ export async function fetchAdInsights(since: string, until: string) {
             fields: AD_FIELDS,
             time_range: JSON.stringify({ since, until }),
             time_increment: "1",
+            filtering: JSON.stringify([{ field: "ad.effective_status", operator: "IN", value: ["ACTIVE", "PAUSED", "ARCHIVED", "DELETED"] }]),
             limit: "500",
         }
     );
@@ -143,4 +145,32 @@ export async function fetchPlacementInsights(since: string, until: string) {
         }
     );
     return raw;
+}
+
+/** Fetch current effective_status for all campaigns in the ad account. */
+export async function fetchCampaignStatuses(): Promise<Record<string, string>> {
+    const { metaFetch } = await import("./client");
+    const data = await metaFetch<{ data: Array<{ id: string; effective_status: string }> }>(
+        `/${AD_ACCOUNT_ID}/campaigns`,
+        { fields: "id,effective_status", limit: "500" }
+    );
+    const map: Record<string, string> = {};
+    for (const c of data.data ?? []) {
+        map[c.id] = c.effective_status;
+    }
+    return map;
+}
+
+/** Fetch current effective_status for all ads in the ad account. */
+export async function fetchAdStatuses(): Promise<Record<string, string>> {
+    const { metaFetch } = await import("./client");
+    const data = await metaFetch<{ data: Array<{ id: string; effective_status: string }> }>(
+        `/${AD_ACCOUNT_ID}/ads`,
+        { fields: "id,effective_status", limit: "500" }
+    );
+    const map: Record<string, string> = {};
+    for (const a of data.data ?? []) {
+        map[a.id] = a.effective_status;
+    }
+    return map;
 }

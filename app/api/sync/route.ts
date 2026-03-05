@@ -1,12 +1,16 @@
 import { prisma } from "@/lib/db";
-import { fetchCampaignInsights, fetchAdSetInsights, fetchAdInsights } from "@/lib/meta/insights";
+import { fetchCampaignInsights, fetchAdSetInsights, fetchAdInsights, fetchCampaignStatuses, fetchAdStatuses } from "@/lib/meta/insights";
 import { creativeScore } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function syncMeta(since: string, until: string) {
-    const campaigns = await fetchCampaignInsights(since, until);
-    const adsets = await fetchAdSetInsights(since, until);
-    const ads = await fetchAdInsights(since, until);
+    const [campaigns, adsets, ads, campaignStatuses, adStatuses] = await Promise.all([
+        fetchCampaignInsights(since, until),
+        fetchAdSetInsights(since, until),
+        fetchAdInsights(since, until),
+        fetchCampaignStatuses().catch(() => ({} as Record<string, string>)),
+        fetchAdStatuses().catch(() => ({} as Record<string, string>)),
+    ]);
 
     // Upsert campaigns
     for (const c of campaigns) {
@@ -26,6 +30,7 @@ export async function syncMeta(since: string, until: string) {
                 purchases: c.purchases,
                 revenue: c.revenue,
                 frequency: c.frequency,
+                status: campaignStatuses[c.campaignId] ?? null,
             },
             update: {
                 spend: c.spend,
@@ -38,6 +43,7 @@ export async function syncMeta(since: string, until: string) {
                 purchases: c.purchases,
                 revenue: c.revenue,
                 frequency: c.frequency,
+                status: campaignStatuses[c.campaignId] ?? null,
             },
         });
     }
@@ -70,7 +76,7 @@ export async function syncMeta(since: string, until: string) {
         });
     }
 
-    // Upsert ads with computed creative score
+    // Upsert ads with computed creative score + status
     for (const ad of ads) {
         const score = creativeScore(ad.ctr, ad.roas, ad.hookRate);
         await prisma.metaAdInsight.upsert({
@@ -88,8 +94,18 @@ export async function syncMeta(since: string, until: string) {
                 hookRate: ad.hookRate,
                 roas: ad.roas,
                 creativeScore: score,
+                status: adStatuses[ad.adId] ?? null,
             },
-            update: { spend: ad.spend, impressions: ad.impressions, ctr: ad.ctr, cpc: ad.cpc, roas: ad.roas, hookRate: ad.hookRate, creativeScore: score },
+            update: {
+                spend: ad.spend,
+                impressions: ad.impressions,
+                ctr: ad.ctr,
+                cpc: ad.cpc,
+                roas: ad.roas,
+                hookRate: ad.hookRate,
+                creativeScore: score,
+                status: adStatuses[ad.adId] ?? null,
+            },
         });
     }
 

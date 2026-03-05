@@ -1,16 +1,17 @@
 import { prisma } from "@/lib/db";
 import StatCard from "@/components/StatCard";
 import Badge from "@/components/Badge";
+import DateRangePicker from "@/components/DateRangePicker";
 import { formatCurrency, formatNumber, formatRoas, formatPercent, campaignHealthStatus } from "@/lib/utils";
 import { detectFatigue, budgetSignals } from "@/lib/insights/engine";
 import { AlertTriangle, TrendingUp, DollarSign, Target, Zap } from "lucide-react";
+import { Suspense } from "react";
 
-async function getOverviewData() {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+async function getOverviewData(since: Date, until: Date) {
   try {
     const campaigns = (await prisma.metaCampaignInsight.groupBy({
       by: ["campaignId", "campaignName"],
-      where: { date: { gte: since } },
+      where: { date: { gte: since, lte: until } },
       _sum: { spend: true, impressions: true, reach: true, purchases: true, revenue: true },
       _avg: { roas: true, ctr: true, cpc: true, frequency: true },
     })) as unknown as Array<{
@@ -36,7 +37,7 @@ async function getOverviewData() {
     const budgets = budgetSignals(campaignList);
 
     const topCreative = await prisma.metaAdInsight.findFirst({
-      where: { date: { gte: since }, spend: { gt: 10 } },
+      where: { date: { gte: since, lte: until }, spend: { gt: 10 } },
       orderBy: { creativeScore: "desc" },
     });
 
@@ -55,25 +56,39 @@ async function getOverviewData() {
 }
 
 
-export default async function CommandCenter() {
-  const data = await getOverviewData();
+export default async function CommandCenter({
+  searchParams,
+}: {
+  searchParams: Promise<{ since?: string; until?: string }>;
+}) {
+  const params = await searchParams;
+  const since = params.since ? new Date(params.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const until = params.until ? new Date(params.until) : new Date();
+  const days = Math.round((until.getTime() - since.getTime()) / 86400000) || 30;
+
+  const data = await getOverviewData(since, until);
   const scaleCandidates = data.budgets.filter((b) => b.signal === "scale");
   const cutCandidates = data.budgets.filter((b) => b.signal === "cut");
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Command Center</h1>
-          <p className="text-sm text-[#6b7280] mt-0.5">Last 30 days · Last sync: {data.lastSync ? new Date(data.lastSync.syncedAt).toLocaleString() : "Never"}</p>
+          <p className="text-sm text-[#6b7280] mt-0.5">Last {days} days · Last sync: {data.lastSync ? new Date(data.lastSync.syncedAt).toLocaleString() : "Never"}</p>
         </div>
-        {data.fatigued.length > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            {data.fatigued.length} campaign{data.fatigued.length > 1 ? "s" : ""} fatigued
-          </div>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          {data.fatigued.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+              <AlertTriangle className="w-4 h-4" />
+              {data.fatigued.length} campaign{data.fatigued.length > 1 ? "s" : ""} fatigued
+            </div>
+          )}
+          <Suspense>
+            <DateRangePicker />
+          </Suspense>
+        </div>
       </div>
 
       {/* KPI Cards */}

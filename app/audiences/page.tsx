@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatPercent, formatRoas } from "@/lib/utils";
 import type { AudienceSegment } from "@/lib/types";
 
+const AGE_ORDER = ["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
+const GENDERS = ["female", "male", "unknown"];
+const GENDER_LABELS: Record<string, string> = { female: "Female", male: "Male", unknown: "Other" };
 
-async function getAudienceData(): Promise<AudienceSegment[]> {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+async function getAudienceData(since: Date): Promise<AudienceSegment[]> {
     try {
         const breakdown = (await prisma.metaAdSetInsight.groupBy({
             by: ["age", "gender"],
@@ -28,20 +30,58 @@ async function getAudienceData(): Promise<AudienceSegment[]> {
     }
 }
 
+function cellBg(roas: number, maxRoas: number): string {
+    if (maxRoas === 0) return "bg-[#1a1d26]";
+    const intensity = roas / maxRoas;
+    if (intensity >= 0.8) return "bg-emerald-500/20 border-emerald-500/40";
+    if (intensity >= 0.6) return "bg-emerald-500/10 border-emerald-500/20";
+    if (intensity >= 0.4) return "bg-amber-500/15 border-amber-500/25";
+    if (intensity >= 0.2) return "bg-red-500/10 border-red-500/20";
+    return "bg-[#1a1d26] border-[#252836]";
+}
 
+function cellText(roas: number): string {
+    if (roas >= 3) return "text-emerald-400";
+    if (roas >= 1.5) return "text-amber-400";
+    if (roas > 0) return "text-red-400";
+    return "text-[#6b7280]";
+}
 
-export default async function AudiencesPage() {
-    const segments = await getAudienceData();
+export default async function AudiencesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ since?: string; until?: string }>;
+}) {
+    const params = await searchParams;
+    const days = params.since ? Math.round((Date.now() - new Date(params.since).getTime()) / 86400000) : 30;
+    const since = params.since ? new Date(params.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const segments = await getAudienceData(since);
     const maxRoas = Math.max(...segments.map((s) => s.roas), 1);
 
-    const femaleSegments = segments.filter((s) => s.gender?.toLowerCase() === "female");
-    const maleSegments = segments.filter((s) => s.gender?.toLowerCase() === "male");
+    // Build lookup: segmentMap[age][gender] = segment
+    const segmentMap: Record<string, Record<string, AudienceSegment>> = {};
+    for (const s of segments) {
+        const ageKey = s.age;
+        const genderKey = s.gender.toLowerCase();
+        if (!segmentMap[ageKey]) segmentMap[ageKey] = {};
+        segmentMap[ageKey][genderKey] = s;
+    }
+
+    const ageGroups = AGE_ORDER.filter((a) => segmentMap[a]).concat(
+        Object.keys(segmentMap).filter((a) => !AGE_ORDER.includes(a)).sort()
+    );
+    const activeGenders = GENDERS.filter((g) =>
+        segments.some((s) => s.gender.toLowerCase() === g)
+    );
 
     return (
         <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-xl font-bold text-white">Audience Intelligence</h1>
-                <p className="text-sm text-[#6b7280] mt-0.5">Last 30 days · Age & Gender breakdown</p>
+            <div className="flex items-start justify-between">
+                <div>
+                    <h1 className="text-xl font-bold text-white">Audience Intelligence</h1>
+                    <p className="text-sm text-[#6b7280] mt-0.5">Last {days} days · Age &amp; Gender breakdown</p>
+                </div>
             </div>
 
             {segments.length === 0 ? (
@@ -50,69 +90,110 @@ export default async function AudiencesPage() {
                 </div>
             ) : (
                 <>
-                    {/* Heatmap */}
+                    {/* --- Visual Heatmap Grid --- */}
                     <div className="rounded-xl border border-[#252836] bg-[#12141a] p-5">
-                        <h2 className="text-sm font-semibold text-white mb-4">ROAS Heatmap — Age × Gender</h2>
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-sm font-semibold text-white">ROAS Heatmap — Age × Gender</h2>
+                            <div className="flex items-center gap-3 text-xs text-[#6b7280]">
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500/30 inline-block" />Low</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-500/30 inline-block" />Mid</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500/40 inline-block" />High ROAS</span>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <div
+                                className="grid gap-2 min-w-[400px]"
+                                style={{
+                                    gridTemplateColumns: `120px repeat(${activeGenders.length}, 1fr)`,
+                                }}
+                            >
+                                {/* Header row */}
+                                <div />
+                                {activeGenders.map((g) => (
+                                    <div key={g} className="text-center text-xs font-semibold text-[#6b7280] uppercase tracking-wider py-1">
+                                        {GENDER_LABELS[g] ?? g}
+                                    </div>
+                                ))}
+
+                                {/* Data rows */}
+                                {ageGroups.map((age) => (
+                                    <>
+                                        {/* Age label */}
+                                        <div key={`label-${age}`} className="flex items-center text-sm font-medium text-[#e8eaf0] pr-2">
+                                            {age}
+                                        </div>
+
+                                        {/* Gender cells */}
+                                        {activeGenders.map((gender) => {
+                                            const seg = segmentMap[age]?.[gender];
+                                            if (!seg) {
+                                                return (
+                                                    <div
+                                                        key={`${age}-${gender}-empty`}
+                                                        className="rounded-lg border border-[#252836] bg-[#0d0f14] p-3 flex items-center justify-center"
+                                                    >
+                                                        <span className="text-xs text-[#3d4051]">—</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div
+                                                    key={`${age}-${gender}`}
+                                                    title={`CTR: ${formatPercent(seg.ctr)} · CPC: ${formatCurrency(seg.cpc)} · Freq: ${seg.frequency.toFixed(1)} · Spend: ${formatCurrency(seg.spend)}`}
+                                                    className={`rounded-lg border p-3 cursor-default transition-transform hover:scale-105 ${cellBg(seg.roas, maxRoas)}`}
+                                                >
+                                                    <p className={`text-base font-bold text-center ${cellText(seg.roas)}`}>
+                                                        {seg.roas > 0 ? formatRoas(seg.roas) : "—"}
+                                                    </p>
+                                                    <p className="text-[10px] text-center text-[#6b7280] mt-0.5">
+                                                        {formatCurrency(seg.spend)}
+                                                    </p>
+                                                    <p className="text-[10px] text-center text-[#6b7280]">
+                                                        {formatPercent(seg.ctr)} CTR
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- Ranked Table --- */}
+                    <div className="rounded-xl border border-[#252836] bg-[#12141a] p-5">
+                        <h2 className="text-sm font-semibold text-white mb-4">Ranked Segments · All Data</h2>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-xs text-[#6b7280] uppercase tracking-wide border-b border-[#252836]">
-                                        <th className="text-left py-2 pr-4">Age Group</th>
+                                        <th className="text-left py-2 pr-4">Age</th>
                                         <th className="text-left py-2 pr-4">Gender</th>
                                         <th className="text-right py-2 px-4">ROAS</th>
                                         <th className="text-right py-2 px-4">CTR</th>
                                         <th className="text-right py-2 px-4">CPC</th>
                                         <th className="text-right py-2 px-4">Freq.</th>
                                         <th className="text-right py-2 px-4">Spend</th>
-                                        <th className="py-2 px-4">ROAS Bar</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#252836]">
-                                    {segments.map((s, i) => {
-                                        const roasPct = maxRoas > 0 ? (s.roas / maxRoas) * 100 : 0;
-                                        const roasColor = s.roas >= 3 ? "bg-emerald-500" : s.roas >= 1.5 ? "bg-amber-500" : "bg-red-500";
-                                        return (
-                                            <tr key={i} className="hover:bg-[#1a1d26] transition-colors">
-                                                <td className="py-2.5 pr-4 font-medium text-white">{s.age}</td>
-                                                <td className="py-2.5 pr-4 text-[#6b7280] capitalize">{s.gender}</td>
-                                                <td className={`py-2.5 px-4 text-right font-bold ${s.roas >= 3 ? "text-emerald-400" : s.roas >= 1.5 ? "text-amber-400" : "text-red-400"}`}>
-                                                    {formatRoas(s.roas)}
-                                                </td>
-                                                <td className="py-2.5 px-4 text-right text-[#e8eaf0]">{formatPercent(s.ctr)}</td>
-                                                <td className="py-2.5 px-4 text-right text-[#e8eaf0]">{formatCurrency(s.cpc)}</td>
-                                                <td className={`py-2.5 px-4 text-right ${s.frequency >= 4 ? "text-red-400" : s.frequency >= 3 ? "text-amber-400" : "text-[#e8eaf0]"}`}>
-                                                    {s.frequency.toFixed(1)}
-                                                </td>
-                                                <td className="py-2.5 px-4 text-right text-[#6b7280]">{formatCurrency(s.spend)}</td>
-                                                <td className="py-2.5 px-4">
-                                                    <div className="w-24 h-2 rounded-full bg-[#252836]">
-                                                        <div className={`h-2 rounded-full ${roasColor}`} style={{ width: `${roasPct}%` }} />
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {segments.map((s, i) => (
+                                        <tr key={i} className="hover:bg-[#1a1d26] transition-colors">
+                                            <td className="py-2.5 pr-4 font-medium text-white">{s.age}</td>
+                                            <td className="py-2.5 pr-4 text-[#6b7280] capitalize">{s.gender}</td>
+                                            <td className={`py-2.5 px-4 text-right font-bold ${cellText(s.roas)}`}>{formatRoas(s.roas)}</td>
+                                            <td className="py-2.5 px-4 text-right text-[#e8eaf0]">{formatPercent(s.ctr)}</td>
+                                            <td className="py-2.5 px-4 text-right text-[#e8eaf0]">{formatCurrency(s.cpc)}</td>
+                                            <td className={`py-2.5 px-4 text-right ${s.frequency >= 4 ? "text-red-400" : s.frequency >= 3 ? "text-amber-400" : "text-[#e8eaf0]"}`}>
+                                                {s.frequency.toFixed(1)}
+                                            </td>
+                                            <td className="py-2.5 px-4 text-right text-[#6b7280]">{formatCurrency(s.spend)}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
-                    {/* Side by side gender summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[{ label: "Female", data: femaleSegments, color: "text-pink-400" }, { label: "Male", data: maleSegments, color: "text-blue-400" }].map(({ label, data, color }) => (
-                            <div key={label} className="rounded-xl border border-[#252836] bg-[#12141a] p-5">
-                                <h2 className={`text-sm font-semibold mb-3 ${color}`}>{label} Segments</h2>
-                                <div className="space-y-2">
-                                    {data.map((s, i) => (
-                                        <div key={i} className="flex justify-between items-center text-sm py-1.5 border-b border-[#252836] last:border-0">
-                                            <span className="text-[#6b7280]">{s.age}</span>
-                                            <span className={`font-semibold ${s.roas >= 3 ? "text-emerald-400" : s.roas >= 1.5 ? "text-amber-400" : "text-red-400"}`}>{formatRoas(s.roas)}</span>
-                                        </div>
-                                    ))}
-                                    {data.length === 0 && <p className="text-[#6b7280] text-xs">No data</p>}
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </>
             )}

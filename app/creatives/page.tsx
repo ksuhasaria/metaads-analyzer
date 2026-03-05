@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import Badge from "@/components/Badge";
+import DateRangePicker from "@/components/DateRangePicker";
 import { formatCurrency, formatPercent, formatRoas } from "@/lib/utils";
+import { Suspense } from "react";
 
 type CreativeRow = {
     adId: string; adName: string; campaignId: string; thumbnailUrl: string | null;
@@ -8,12 +10,11 @@ type CreativeRow = {
     _avg: { ctr: number | null; cpc: number | null; roas: number | null; hookRate: number | null; creativeScore: number | null };
 };
 
-async function getCreatives(): Promise<CreativeRow[]> {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+async function getCreatives(since: Date, until: Date): Promise<CreativeRow[]> {
     try {
         return await (prisma.metaAdInsight.groupBy({
             by: ["adId", "adName", "campaignId", "thumbnailUrl"],
-            where: { date: { gte: since }, spend: { gt: 0 } },
+            where: { date: { gte: since, lte: until }, spend: { gt: 0 } },
             _sum: { spend: true, impressions: true },
             _avg: { ctr: true, cpc: true, roas: true, hookRate: true, creativeScore: true },
             orderBy: { _avg: { creativeScore: "desc" } },
@@ -33,14 +34,27 @@ function tierBadge(score: number): { label: string; variant: "green" | "yellow" 
     return { label: "Weak", variant: "red" };
 }
 
-export default async function CreativesPage() {
-    const creatives = await getCreatives();
+export default async function CreativesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ since?: string; until?: string }>;
+}) {
+    const params = await searchParams;
+    const since = params.since ? new Date(params.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const until = params.until ? new Date(params.until) : new Date();
+    const days = Math.round((until.getTime() - since.getTime()) / 86400000) || 30;
+    const creatives = await getCreatives(since, until);
 
     return (
         <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-xl font-bold text-white">Creative Lab</h1>
-                <p className="text-sm text-[#6b7280] mt-0.5">Last 30 days · Ranked by Creative Score</p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h1 className="text-xl font-bold text-white">Creative Lab</h1>
+                    <p className="text-sm text-[#6b7280] mt-0.5">Last {days} days · Ranked by Creative Score</p>
+                </div>
+                <Suspense>
+                    <DateRangePicker />
+                </Suspense>
             </div>
 
             {creatives.length === 0 ? (

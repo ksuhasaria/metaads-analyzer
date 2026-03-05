@@ -1,15 +1,21 @@
 import { prisma } from "@/lib/db";
 import Badge from "@/components/Badge";
+import DateRangePicker from "@/components/DateRangePicker";
+import StatusFilter from "@/components/StatusFilter";
 import { formatCurrency, formatNumber, formatRoas, formatPercent, campaignHealthStatus } from "@/lib/utils";
 import type { CampaignRow } from "@/lib/types";
+import { Suspense } from "react";
 
 
-async function getCampaigns(): Promise<CampaignRow[]> {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+async function getCampaigns(since: Date, until: Date, status?: string): Promise<CampaignRow[]> {
     try {
+        const where: Record<string, unknown> = { date: { gte: since, lte: until } };
+        if (status && status !== "all") {
+            where.status = status;
+        }
         const campaigns = (await prisma.metaCampaignInsight.groupBy({
             by: ["campaignId", "campaignName"],
-            where: { date: { gte: since } },
+            where,
             _sum: { spend: true, impressions: true, reach: true, purchases: true, revenue: true },
             _avg: { roas: true, ctr: true, cpc: true, cpm: true, frequency: true },
         })) as unknown as Array<{
@@ -31,14 +37,33 @@ async function getCampaigns(): Promise<CampaignRow[]> {
 }
 
 
-export default async function CampaignsPage() {
-    const campaigns = await getCampaigns();
+export default async function CampaignsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ since?: string; until?: string; status?: string }>;
+}) {
+    const params = await searchParams;
+    const since = params.since ? new Date(params.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const until = params.until ? new Date(params.until) : new Date();
+    const days = Math.round((until.getTime() - since.getTime()) / 86400000) || 30;
+    const statusFilter = params.status ?? "all";
+    const campaigns = await getCampaigns(since, until, statusFilter);
 
     return (
         <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-xl font-bold text-white">Campaign Analysis</h1>
-                <p className="text-sm text-[#6b7280] mt-0.5">Last 30 days · All campaigns</p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h1 className="text-xl font-bold text-white">Campaign Analysis</h1>
+                    <p className="text-sm text-[#6b7280] mt-0.5">Last {days} days · {statusFilter === "all" ? "All campaigns" : `${statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()} only`}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Suspense>
+                        <StatusFilter />
+                    </Suspense>
+                    <Suspense>
+                        <DateRangePicker />
+                    </Suspense>
+                </div>
             </div>
 
             <div className="rounded-xl border border-[#252836] bg-[#12141a] overflow-hidden">
