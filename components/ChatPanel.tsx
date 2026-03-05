@@ -12,6 +12,7 @@ export default function ChatPanel() {
 
     const { messages, sendMessage, status } = useChat({
         api: '/api/chat',
+        id: provider,
         body: { provider },
     } as any);
 
@@ -30,12 +31,13 @@ export default function ChatPanel() {
 
         const content = input;
         setInput('');
-        await sendMessage({ text: content });
+        await sendMessage({ text: content }, { body: { provider } });
     };
 
     const handleSuggestion = async (suggestion: string) => {
         if (isLoading) return;
-        await sendMessage({ text: suggestion });
+
+        await sendMessage({ text: suggestion }, { body: { provider } });
     };
 
     return (
