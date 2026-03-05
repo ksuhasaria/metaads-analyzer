@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 export async function GET() {
     try {
         const campaignCount = await prisma.metaCampaignInsight.count();
+        const adsetCount = await prisma.metaAdSetInsight.count();
         const adInsightCount = await prisma.metaAdInsight.count();
+        const adsetSample = await prisma.metaAdSetInsight.findFirst();
         const syncLogCount = await prisma.syncLog.count();
         const lastSync = await prisma.syncLog.findFirst({ orderBy: { syncedAt: "desc" } });
 
@@ -12,9 +14,11 @@ export async function GET() {
             success: true,
             counts: {
                 campaigns: campaignCount,
+                adsets: adsetCount,
                 ads: adInsightCount,
                 syncLogs: syncLogCount,
             },
+            adsetSample,
             lastSync,
             env: {
                 hasDatabaseUrl: !!process.env.DATABASE_URL,
